@@ -7,3 +7,13 @@ cert-cache/
 artifacts/*.crtartifacts/*.cer
 artifacts/*.sha256
 up-log.txt
+
+# Private cloud-init configuration, media and VM state
+cloud-init/.env
+cloud-init/laptop/acme-email
+dist/
+*.iso
+*.qcow2
+console-password.txt
+private-origin-ca/
+__pycache__/

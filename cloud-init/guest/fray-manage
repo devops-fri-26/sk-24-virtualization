@@ -1,0 +1,8 @@
+#!/bin/sh
+# systemd loads the same environment as Gunicorn and runs Django as fray.
+set -eu
+exec systemd-run --quiet --wait --collect --pty --uid=fray \
+    -p WorkingDirectory=/opt/fray/current/backend \
+    -p EnvironmentFile=/etc/fray/app.env -p EnvironmentFile=/etc/fray/site.env \
+    -p EnvironmentFile=-/etc/fray/mail.env \
+    /opt/fray/current/venv/bin/python manage.py "$@"
