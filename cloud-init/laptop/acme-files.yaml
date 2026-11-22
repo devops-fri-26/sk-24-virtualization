@@ -1,0 +1,32 @@
+  - path: /etc/fray/acme.env
+    permissions: '0600'
+    content: |
+      ACME_EMAIL=@EMAIL@
+  - path: /etc/systemd/system/fray-acme-enroll.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Obtain the initial public HTTPS certificate for Fray
+      Wants=network-online.target
+      After=network-online.target nginx.service
+      ConditionPathExists=!/etc/fray/acme-enrolled
+
+      [Service]
+      Type=oneshot
+      EnvironmentFile=/etc/fray/acme.env
+      ExecStart=/usr/local/sbin/fray-acme test ${ACME_EMAIL}
+      ExecStart=/usr/local/sbin/fray-acme enable ${ACME_EMAIL}
+      ExecStart=/usr/bin/touch /etc/fray/acme-enrolled
+  - path: /etc/systemd/system/fray-acme-enroll.timer
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Retry Fray HTTPS enrollment if the public route was unavailable
+      ConditionPathExists=!/etc/fray/acme-enrolled
+
+      [Timer]
+      OnActiveSec=6h
+      OnUnitInactiveSec=6h
+
+      [Install]
+      WantedBy=timers.target

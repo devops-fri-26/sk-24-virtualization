@@ -1,0 +1,25 @@
+[Unit]
+Description=Fray time-tracking API
+After=postgresql.service redis-server.service network.target
+Requires=postgresql.service redis-server.service
+
+[Service]
+User=fray
+Group=fray
+WorkingDirectory=/opt/fray/current/backend
+EnvironmentFile=/etc/fray/app.env
+EnvironmentFile=/etc/fray/site.env
+EnvironmentFile=-/etc/fray/mail.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStartPre=/opt/fray/current/venv/bin/python manage.py migrate --noinput
+ExecStart=/opt/fray/current/venv/bin/gunicorn fray.wsgi:application --bind 127.0.0.1:8000 --workers 1 --threads 4 --error-logfile -
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
