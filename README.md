@@ -178,7 +178,7 @@ Obnova certifikata: `sudo rm /etc/ssl/fray/server.crt && sudo systemctl start fr
 ## Posnetki zaslona
 
 ![Vagrant](screenshots/services.png)
-![Prijava](screenshots/grafana logs.png)
+![Prijava](screenshots/grafana_logs.png)
 ![Grafana](screenshots/grafana.png)
 
 ## Odpravljanje težav
