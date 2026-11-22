@@ -107,6 +107,15 @@ A clean laptop run with 2 vCPUs, 4 GiB RAM, a cached Ubuntu image and a prebuilt
 
 On 22 November 2026 the original Ubuntu VM completed application provisioning in 144 seconds. The operator reached the HTTP-01 marker over mobile data. The updated cloud-config passed `cloud-init schema` inside that VM, and its generated enrollment units were applied in place. Both staging validation and production issuance succeeded. The laptop HTTPS listener served a browser-trusted certificate for `fray-cloud.klanija.com` expiring on 20 February 2027 and returned a healthy API response. Certbot's renewal dry run also passed. After configuring the HTTPS forward, the public Grafana login returned HTTP 200 with a trusted certificate. Its user API returned 401 to an anonymous request. An authenticated session reached the provisioned Loki and Prometheus data sources.
 
+## Problems we encountered
+
+| Symptom | How we narrowed it down | Change and verification |
+|---|---|---|
+| The HTTP-01 marker loaded on mobile data, but public HTTPS timed out. | A request to the laptop listener on port 18443, using the public hostname for TLS verification, returned a healthy API response. The HTTP marker had only exercised the TCP 80 route. | Kept TCP 80 for certificate validation and configured a second router forward from public TCP 443 to laptop TCP 18443. The public Grafana login page subsequently returned HTTP 200 with a trusted certificate. |
+| The website could load, but creating an account returned HTTP 503. | In Grafana Explore, the Loki query `{service="nginx"} |= "/api/auth/signup"` showed the failing request. Inside the guest, `sudo fray-manage check_email` reported that signup was disabled and the SMTP username, password and sender were missing. | Applied the private mail settings to `/etc/fray/mail.env`, checked SMTP authentication with `sudo fray-manage check_email --connect`, and restarted `fray`. A subsequent signup returned HTTP 201. |
+| A verification email still did not reach the inbox after signup returned 201. | Fray recorded one message accepted by the SMTP relay. The running service still had the old sender domain after the workstation settings had been edited. SMTP authentication alone could not establish inbox delivery. | Applied the corrected From address, restarted Fray, and verified the effective sender in the running service and its domain’s active status in Mailjet. Inbox delivery after this change still needs a fresh signup or resend and confirmation from the recipient. |
+| Changing `GF_SECURITY_ADMIN_PASSWORD` in the workstation file did not update the existing Grafana login. | Grafana had already created its admin account in its database using the first-boot password. | Updated the existing Grafana account and the VM’s private Grafana settings. Verified a fresh session through `/grafana/login` and an authenticated response from `/grafana/api/user`. |
+
 ## Guest operations and recovery
 
 For a first Fray user without SMTP, run `sudo fray-manage create_fray_user student@example.org --name Student` in the private guest console. Choose a password, enroll the authenticator, and save the recovery codes privately.
