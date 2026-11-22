@@ -50,6 +50,7 @@ Vagrant.configure("2") do |config|
     cp -a /tmp/artifacts/. /opt/artifacts/
     chown -R root:root /opt/provision /opt/artifacts
     chmod +x /opt/provision/*.sh
+    rm -rf /tmp/provision /tmp/artifacts
   SHELL
 
   # 3) The actual provisioning, one named step per script
