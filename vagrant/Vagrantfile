@@ -1,0 +1,60 @@
+# Load vagrant/.env (KEY=VALUE per line) into a hash that is passed to scripts
+env = {}
+envfile = File.join(__dir__, ".env")
+if File.exist?(envfile)
+  File.readlines(envfile).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+    key, value = line.split("=", 2)
+    env[key] = value.to_s
+  end
+end
+
+SCRIPTS = %w[
+  00-base 10-postgres 20-redis 30-app 40-tls
+  50-nginx 60-monitoring 70-backup 99-smoke-test
+]
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"
+  config.vm.box_check_update = false
+  config.vm.hostname = "fray"
+
+  config.vm.network "private_network", ip: "192.168.56.10"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "fray"
+    vb.memory = 3072
+    vb.cpus = 2
+    vb.linked_clone = true
+  end
+
+  # No default share of the project folder
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  # 1) Upload provisioning scripts and the release artifact
+    config.vm.provision "shell", name: "prepare-upload", privileged: true, inline: <<-SHELL
+        rm -rf /tmp/provision /tmp/artifacts
+        mkdir -p /tmp/provision /tmp/artifacts
+        chown -R vagrant:vagrant /tmp/provision /tmp/artifacts
+    SHELL
+  config.vm.provision "file", source: "provision/", destination: "/tmp/provision"
+  config.vm.provision "file", source: "../artifacts/", destination: "/tmp/artifacts"
+
+  # 2) Move uploads to their final location (root-owned)
+  config.vm.provision "shell", name: "stage-files", privileged: true, inline: <<-SHELL
+    set -e
+    rm -rf /opt/provision /opt/artifacts
+    mkdir -p /opt/provision /opt/artifacts
+    cp -a /tmp/provision/. /opt/provision/
+    cp -a /tmp/artifacts/. /opt/artifacts/
+    chown -R root:root /opt/provision /opt/artifacts
+    chmod +x /opt/provision/*.sh
+  SHELL
+
+  # 3) The actual provisioning, one named step per script
+  SCRIPTS.each do |s|
+    config.vm.provision "shell", name: s, privileged: true,
+      path: "provision/#{s}.sh", env: env
+  end
+end
