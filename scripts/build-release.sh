@@ -17,6 +17,7 @@ VER=$(git -C "$APP" rev-parse --short HEAD)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/backend" "$STAGE/web"
+chmod 755 "$STAGE"
 
 rsync -a \
   --exclude '*.sqlite3' --exclude '__pycache__' --exclude '*.pyc' \
@@ -27,6 +28,6 @@ echo "$VER" > "$STAGE/VERSION"
 
 tar -C "$STAGE" -czf "$OUT/fray-$VER.tar.gz" .
 ( cd "$OUT" && sha256sum "fray-$VER.tar.gz" > "fray-$VER.tar.gz.sha256" )
-ln -sf "fray-$VER.tar.gz" "$OUT/fray-latest.tar.gz"
-ln -sf "fray-$VER.tar.gz.sha256" "$OUT/fray-latest.tar.gz.sha256"
+cp "$OUT/fray-$VER.tar.gz" "$OUT/fray-latest.tar.gz"
+( cd "$OUT" && sha256sum fray-latest.tar.gz > fray-latest.tar.gz.sha256 )
 echo "Built fray-$VER.tar.gz"
