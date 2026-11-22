@@ -1,0 +1,6 @@
+vagrant/.env
+.vagrant/
+artifacts/*.tar.gz
+cert-cache/
+*.key
+*.pem
