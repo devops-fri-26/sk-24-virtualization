@@ -38,6 +38,37 @@ For a **public first boot**, configure the DNS record and router ports below fir
 
 The VM keeps its disk and attached kit across reboots. Run `sudo poweroff` inside Ubuntu to shut down. Use `docker start fray-laptop` on the host to resume once the laptop's LAN address is available. Back up the private kit, disk and its backing image together.
 
+## First boot
+
+After the launcher starts QEMU, Ubuntu performs the setup inside the guest. You can watch it from a second terminal on the laptop:
+
+```sh
+docker logs --follow fray-laptop
+```
+
+Press **Ctrl-C** to leave the log view. The VM keeps running. In the captured boot below, the serial log announced `init-local` at 4.60 seconds, `init` at 8.49 seconds, `modules:config` at 10.86 seconds and `modules:final` at 12.77 seconds. Package installation and Fray provisioning ran during that final stage.
+
+| What happens | Where to find it |
+|---|---|
+| QEMU boots the signed Ubuntu image with a fresh writable disk and two virtual CDs. Ubuntu discovers the `CIDATA` volume. The instance ID identifies this installation, `network-config` requests DHCP on the guest NIC, and `user-data` supplies the rendered cloud-config. | [Laptop launcher](laptop/start.sh) and [seed generator](prepare.py) |
+| Cloud-init writes `/usr/local/sbin/fray-provision` and records the `runcmd` command. During the final stage, Ubuntu installs the YAML package list before `scripts-user` invokes that command. | [Cloud-config template](user-data.template.yaml) |
+| The provisioner mounts `FRAYAPP` read-only, verifies the release checksum and unpacks it. The guest installer installs the remaining packages, configures PostgreSQL and Redis, starts the app and monitoring services, and checks that a real Nginx access log reached Loki. | [Guest installer](guest/install.sh) |
+| A kit prepared with an ACME contact then tests HTTP-01 against staging and requests its public certificate. A local kit uses its private CA. | [Enrollment units](laptop/acme-files.yaml) |
+
+To verify completion, run `docker attach fray-laptop` **on the laptop** and log in as `ubuntu` on the guest console. Run these commands **inside Ubuntu**:
+
+```sh
+cloud-init status --wait --long
+sudo cloud-init analyze show
+sudo tail -n 20 /var/log/cloud-init-output.log
+```
+
+In a successful run, look for `status: done`, `errors: []`, and the application check `Verified Nginx access logs in Loki`. If setup fails, the output log identifies the failing step. Detach with **Ctrl-P then Ctrl-Q**. For later boots of this same VM, systemd starts the enabled services using the existing disk and database. To reproduce the first-boot demonstration, use a fresh VM disk.
+
+![Ubuntu guest console showing cloud-init completion, CIDATA and FRAYAPP, an Nginx access log in Loki, and HTTP 200 for the API and Grafana login](../docs/screenshots/cloud-init-first-boot.png)
+
+The console capture is from a fresh, isolated VM built with the team release. Cloud-init finished at 160.38 seconds of guest uptime. The host measured 163.7 seconds from launch through the final checks with a cached Ubuntu image and prebuilt Fray release. Both HTTPS checks used the kit CA. The public certificate test is documented under [deployment evidence](#deployment-evidence).
+
 ## Check the running VM
 
 On the laptop, run the following. The expected HTTP response is `Fray HTTP-01 ready for fray-cloud.klanija.com`.
@@ -107,6 +138,34 @@ A clean laptop run with 2 vCPUs, 4 GiB RAM, a cached Ubuntu image and a prebuilt
 
 On 22 November 2026 the original Ubuntu VM completed application provisioning in 144 seconds. The operator reached the HTTP-01 marker over mobile data. The updated cloud-config passed `cloud-init schema` inside that VM, and its generated enrollment units were applied in place. Both staging validation and production issuance succeeded. The laptop HTTPS listener served a browser-trusted certificate for `fray-cloud.klanija.com` expiring on 20 February 2027 and returned a healthy API response. Certbot's renewal dry run also passed. After configuring the HTTPS forward, the public Grafana login returned HTTP 200 with a trusted certificate. Its user API returned 401 to an anonymous request. An authenticated session reached the provisioned Loki and Prometheus data sources.
 
+## Deployment screenshots
+
+### Ubuntu and the provisioned services
+
+The [first-boot console capture](#first-boot) shows the two attached virtual CDs, successful cloud-init completion, and HTTPS checks. The following capture is from a second clean VM built from the same release. Cloud-init finished 157 seconds after guest startup. The top half shows when it entered each stage. The lower half shows the systemd state of the application, database, cache and monitoring services after provisioning.
+
+![Ubuntu first-boot timings and systemd status for the nine Fray services](../docs/screenshots/cloud-init-services.png)
+
+### Fray in the browser
+
+Chromium loaded the sign-in page from the public laptop deployment at `https://fray-cloud.klanija.com/` over TLS 1.3 with certificate verification enabled.
+
+![Public Fray sign-in page with empty email and password fields](../docs/screenshots/cloud-init-fray-signin.png)
+
+From that page, **Explore the demo** opens a calendar with sample time entries. The banner identifies this as the demo workspace. This is a way to show the application during the defense without opening a private account.
+
+![Fray demo calendar showing monthly hours, days with entries and active projects](../docs/screenshots/cloud-init-fray-calendar.png)
+
+### Metrics and logs
+
+The authenticated **Fray operations** dashboard queries Prometheus. In this capture, the API, PostgreSQL and Redis readiness panels all read **1**. The plots below show request rate and latency during the selected interval.
+
+![Live Grafana operations dashboard showing API, database and cache readiness alongside request metrics](../docs/screenshots/cloud-init-grafana-dashboard.png)
+
+To demonstrate the log pipeline, request `/api/health` and search for `{service="nginx"} |= "/api/health"` in **Grafana → Explore → Fray logs**. The capture shows Nginx returning 502 while the upstream was starting, followed by a successful 200 request. Alloy forwarded these journal entries to Loki.
+
+![Nginx health requests in Grafana Explore](../docs/screenshots/cloud-init-grafana-logs.png)
+
 ## Problems we encountered
 
 | Symptom | How we narrowed it down | Change and verification |
@@ -125,5 +184,3 @@ For a first-boot failure, check `cloud-init status --long`, `sudo tail -100 /var
 A fresh disk starts with an empty database and new application keys. To recover existing users, restore a tested VM backup, or restore PostgreSQL together with its matching Django signing and MFA keys in `/etc/fray/app.env`. Keep backups private and test recovery on an isolated VM.
 
 [First-boot walkthrough and defense questions](../docs/cloud-init-defense.md)
-
-![Nginx health requests in Grafana Explore](../docs/screenshots/cloud-init-grafana-logs.png)
