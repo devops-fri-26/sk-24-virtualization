@@ -4,6 +4,8 @@ Različica z Vagrantom z enim ukazom (`vagrant up`) ustvari virtualni računalni
 
 **Različica s cloud-init** na prenosniku s QEMU/KVM zažene Ubuntu iz uradne slike. Ob prvem zagonu nastavi Fray, PostgreSQL, Redis in Nginx ter beleženje in nadzor z Alloy, Loki, Prometheusom in Grafano. Za javni HTTPS uporabi Let’s Encrypt. [Navodila za zagon in preverjanje](cloud-init/README.md#reproduce-the-deployment) · [Težave pri postavitvi s cloud-init](cloud-init/README.md#problems-we-encountered) · [Posnetek dnevnikov v Grafani](docs/screenshots/cloud-init-grafana-logs.png)
 
+**Prvi zagon VM s cloud-init.** QEMU zažene Ubuntu s svežim zapisljivim diskom na osnovi uradne slike. Cloud-init na navideznem CD-ju `CIDATA` prebere navodila in zažene namestitveno skripto. Ta z drugega CD-ja (`FRAYAPP`) prebere izdajo aplikacije, namesti storitve in preveri API ter dostavo dnevnikov v Loki. Pri običajnem ponovnem zagonu iste VM storitve zažene systemd. [Potek prvega zagona, ukazi in posnetek konzole](cloud-init/README.md#first-boot)
+
 ## O projektu
 
 **Fray** je aplikacija za zasebno beleženje časa (splet, iOS, Android). Spletni odjemalec je napisan v Flutterju, strežnik v Djangu. Uporabniki se prijavijo z geslom in dvostopenjskim preverjanjem (TOTP). Aplikacija: <https://github.com/ELITE-Salty/fray>.

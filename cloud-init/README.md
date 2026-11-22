@@ -38,6 +38,37 @@ For a **public first boot**, configure the DNS record and router ports below fir
 
 The VM keeps its disk and attached kit across reboots. Run `sudo poweroff` inside Ubuntu to shut down. Use `docker start fray-laptop` on the host to resume once the laptop's LAN address is available. Back up the private kit, disk and its backing image together.
 
+## First boot
+
+After the launcher starts QEMU, Ubuntu performs the setup inside the guest. You can watch it from a second terminal on the laptop:
+
+```sh
+docker logs --follow fray-laptop
+```
+
+Press **Ctrl-C** to leave the log view. The VM keeps running. In the captured boot below, the serial log announced `init-local` at 4.60 seconds, `init` at 8.49 seconds, `modules:config` at 10.86 seconds and `modules:final` at 12.77 seconds. Package installation and Fray provisioning ran during that final stage.
+
+| What happens | Where to find it |
+|---|---|
+| QEMU boots the signed Ubuntu image with a fresh writable disk and two virtual CDs. Ubuntu discovers the `CIDATA` volume. The instance ID identifies this installation, `network-config` requests DHCP on the guest NIC, and `user-data` supplies the rendered cloud-config. | [Laptop launcher](laptop/start.sh) and [seed generator](prepare.py) |
+| Cloud-init writes `/usr/local/sbin/fray-provision` and records the `runcmd` command. During the final stage, Ubuntu installs the YAML package list before `scripts-user` invokes that command. | [Cloud-config template](user-data.template.yaml) |
+| The provisioner mounts `FRAYAPP` read-only, verifies the release checksum and unpacks it. The guest installer installs the remaining packages, configures PostgreSQL and Redis, starts the app and monitoring services, and checks that a real Nginx access log reached Loki. | [Guest installer](guest/install.sh) |
+| A kit prepared with an ACME contact then tests HTTP-01 against staging and requests its public certificate. A local kit uses its private CA. | [Enrollment units](laptop/acme-files.yaml) |
+
+To verify completion, run `docker attach fray-laptop` **on the laptop** and log in as `ubuntu` on the guest console. Run these commands **inside Ubuntu**:
+
+```sh
+cloud-init status --wait --long
+sudo cloud-init analyze show
+sudo tail -n 20 /var/log/cloud-init-output.log
+```
+
+In a successful run, look for `status: done`, `errors: []`, and the application check `Verified Nginx access logs in Loki`. If setup fails, the output log identifies the failing step. Detach with **Ctrl-P then Ctrl-Q**. For later boots of this same VM, systemd starts the enabled services using the existing disk and database. To reproduce the first-boot demonstration, use a fresh VM disk.
+
+![Ubuntu guest console showing cloud-init completion, CIDATA and FRAYAPP, an Nginx access log in Loki, and HTTP 200 for the API and Grafana login](../docs/screenshots/cloud-init-first-boot.png)
+
+The console capture is from a fresh, isolated VM built with the team release. Cloud-init finished at 160.38 seconds of guest uptime. The host measured 163.7 seconds from launch through the final checks with a cached Ubuntu image and prebuilt Fray release. Both HTTPS checks used the kit CA. The public certificate test is documented under [deployment evidence](#deployment-evidence).
+
 ## Check the running VM
 
 On the laptop, run the following. The expected HTTP response is `Fray HTTP-01 ready for fray-cloud.klanija.com`.
