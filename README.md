@@ -172,12 +172,9 @@ Obnova certifikata: `sudo rm /etc/ssl/fray/server.crt && sudo systemctl start fr
 
 ## Posnetki zaslona
 
-![Zaključek vagrant up](screenshots/vagrant-up.png)
-![Veljaven HTTPS](screenshots/https-lock.png)
-![Prijava s TOTP](screenshots/fray-login.png)
-![Aplikacija](screenshots/fray-app.png)
-![Grafana](screenshots/grafana-dashboard.png)
-![Obnova varnostne kopije](screenshots/backup-restore.png)
+![Vagrant](screenshots/services.png)
+![Prijava](screenshots/grafana logs.png)
+![Grafana](screenshots/grafana.png)
 
 ## Odpravljanje težav
 
