@@ -2,7 +2,7 @@
 
 Različica z Vagrantom z enim ukazom (`vagrant up`) ustvari virtualni računalnik z Ubuntu 24.04 in na njem postavi aplikacijo **Fray** s celotnim produkcijskim okoljem: Nginx z HTTPS, aplikacijski strežnik, podatkovna baza, predpomnilnik, nadzorna plošča, varnostne kopije in utrjen sistem. Spodnji razdelki opisujejo različico z Vagrantom.
 
-**Različica s cloud-init** na prenosniku s QEMU/KVM zažene Ubuntu iz uradne slike. Ob prvem zagonu nastavi Fray, PostgreSQL, Redis in Nginx ter beleženje in nadzor z Alloy, Loki, Prometheusom in Grafano. Za javni HTTPS uporabi Let’s Encrypt. [Navodila za zagon in preverjanje](cloud-init/README.md#reproduce-the-deployment) · [Posnetek dnevnikov v Grafani](docs/screenshots/cloud-init-grafana-logs.png)
+**Različica s cloud-init** na prenosniku s QEMU/KVM zažene Ubuntu iz uradne slike. Ob prvem zagonu nastavi Fray, PostgreSQL, Redis in Nginx ter beleženje in nadzor z Alloy, Loki, Prometheusom in Grafano. Za javni HTTPS uporabi Let’s Encrypt. [Navodila za zagon in preverjanje](cloud-init/README.md#reproduce-the-deployment) · [Težave pri postavitvi s cloud-init](cloud-init/README.md#problems-we-encountered) · [Posnetek dnevnikov v Grafani](docs/screenshots/cloud-init-grafana-logs.png)
 
 ## O projektu
 
@@ -182,6 +182,16 @@ Obnova certifikata: `sudo rm /etc/ssl/fray/server.crt && sudo systemctl start fr
 ![Obnova varnostne kopije](screenshots/backup-restore.png)
 
 ## Odpravljanje težav
+
+### Cloud-init na prenosniku
+
+- **Telefon je na mobilnem omrežju dosegel testno datoteko prek HTTP, povezava HTTPS pa je potekla.** S tem smo preverili pot prek vrat 80. Nginx je na prenosniku že vrnil zdrav odziv z veljavnim certifikatom. Za javni HTTPS smo potrebovali še ločeno pravilo na usmerjevalniku: zunanja vrata TCP 443 → vrata 18443 na prenosniku. Javno pot smo potrdili z odzivom HTTP 200 na strani za prijavo v Grafano.
+- **Registracija je vrnila HTTP 503.** Zahtevo smo našli v Lokiju. V VM je bila registracija izključena, manjkale so tudi nastavitve SMTP. Ko smo jih dodali in ponovno zagnali storitev `fray`, je naslednja registracija vrnila HTTP 201. Pri preverjanju dostave smo posebej preverili še naslov pošiljatelja.
+- **Novo geslo iz datoteke `.env` ni veljalo za obstoječi račun Grafane.** Grafana začetno geslo uporabi ob prvem zagonu. Posodobili smo geslo računa `admin` v Grafani, uskladili nastavitev v VM in preverili novo prijavo prek javnega naslova HTTPS.
+
+[Podrobnejši potek diagnostike in preverjanja](cloud-init/README.md#problems-we-encountered)
+
+### Vagrant
 
 | Težava | Rešitev |
 |--------|---------|
