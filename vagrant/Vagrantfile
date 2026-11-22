@@ -12,7 +12,7 @@ end
 
 SCRIPTS = %w[
   00-base 10-postgres 20-redis 30-app 40-tls
-  50-nginx 60-monitoring 70-backup 99-smoke-test
+  50-nginx 60-monitoring 70-backup
 ]
 
 Vagrant.configure("2") do |config|

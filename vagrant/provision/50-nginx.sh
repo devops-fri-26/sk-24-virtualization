@@ -80,6 +80,26 @@ server {
         return 404;
     }
 
+    location = /grafana/metrics {
+        return 404;
+    }
+
+    location /grafana/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /grafana/api/live/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host       $host;
+    }
+
     location /api/ {
         limit_req zone=fray_api burst=20 nodelay;
         proxy_pass http://127.0.0.1:8000;
