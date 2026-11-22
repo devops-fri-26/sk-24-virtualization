@@ -36,3 +36,7 @@ set_env() {
 getv() {
   grep "^$1=" "$FRAY_ENV" | head -n1 | cut -d= -f2- || true
 }
+
+ensure_value() {
+  grep -q "^$1=" "$FRAY_ENV" || echo "$1=$2" >> "$FRAY_ENV"
+}

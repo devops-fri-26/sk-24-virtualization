@@ -4,3 +4,6 @@ artifacts/*.tar.gz
 cert-cache/
 *.key
 *.pem
+artifacts/*.crtartifacts/*.cer
+artifacts/*.sha256
+up-log.txt
