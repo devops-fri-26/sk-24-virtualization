@@ -1,6 +1,8 @@
-# Fray – samodejna postavitev z Vagrantom
+# Fray – samodejna postavitev z Vagrantom in cloud-init
 
-Projekt z enim ukazom (`vagrant up`) ustvari virtualni računalnik z Ubuntu 24.04 in na njem postavi aplikacijo **Fray** s celotnim produkcijskim okoljem: Nginx z HTTPS, aplikacijski strežnik, podatkovna baza, predpomnilnik, nadzorna plošča, varnostne kopije in utrjen sistem. Repozitorij vsebuje samo različico z Vagrantom.
+Različica z Vagrantom z enim ukazom (`vagrant up`) ustvari virtualni računalnik z Ubuntu 24.04 in na njem postavi aplikacijo **Fray** s celotnim produkcijskim okoljem: Nginx z HTTPS, aplikacijski strežnik, podatkovna baza, predpomnilnik, nadzorna plošča, varnostne kopije in utrjen sistem. Spodnji razdelki opisujejo različico z Vagrantom.
+
+**Različica s cloud-init** na prenosniku s QEMU/KVM zažene Ubuntu iz uradne slike. Ob prvem zagonu nastavi Fray, PostgreSQL, Redis in Nginx ter beleženje in nadzor z Alloy, Loki, Prometheusom in Grafano. Za javni HTTPS uporabi Let’s Encrypt. [Navodila za zagon in preverjanje](cloud-init/README.md#reproduce-the-deployment) · [Posnetek dnevnikov v Grafani](docs/screenshots/cloud-init-grafana-logs.png)
 
 ## O projektu
 

@@ -1,0 +1,47 @@
+#cloud-config
+users: [default]
+hostname: @VM_NAME@
+@LOGIN@
+ssh_pwauth: false
+disable_root: true
+package_update: true
+packages:
+  - ca-certificates
+  - curl
+  - ufw
+  - qemu-guest-agent
+write_files:
+  - path: /usr/local/sbin/fray-provision
+    owner: root:root
+    permissions: '0700'
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      exec 9>/run/fray-provision.lock
+      flock -n 9 || { echo "Fray provisioning is already running"; exit 1; }
+      mkdir -p /run/fray-media /opt/fray /etc/fray
+      mount -o ro,nodev,nosuid,noexec LABEL=FRAYAPP /run/fray-media
+      trap 'cd / && umount /run/fray-media' EXIT
+      cd /run/fray-media
+      echo '@RELEASE_SHA@  release.tgz' | sha256sum --check --status
+      echo '@CERT_SHA@  origin.crt' | sha256sum --check --status
+      echo '@CA_SHA@  origin-ca.crt' | sha256sum --check --status
+      echo '@KEY_SHA@  origin.key' | sha256sum --check --status
+      dest=/opt/fray/@RELEASE_SHA@
+      if [[ ! -d "$dest" ]]; then
+          stage=$(mktemp -d /opt/fray/.unpacking.XXXXXX)
+          tar -xzf release.tgz --no-same-owner -C "$stage"
+          chmod 0755 "$stage"
+          mv "$stage" "$dest"
+      fi
+      install -m 0600 origin.key /etc/fray/origin.key
+      install -m 0644 origin.crt /etc/fray/origin.crt
+      install -m 0644 origin-ca.crt /etc/fray/origin-ca.crt
+@ENV_SETUP@
+      cd /
+      # Keep the positional arguments compatible with existing laptop release archives.
+      bash "$dest/guest/install.sh" "$dest" @DOMAIN@ 10.0.2.0/24 @ADMIN_NET@ @SSH_MODE@ 10.0.2.15 laptop @GRAFANA_ACCESS@
+@ACME_START@
+@ACME_FILES@
+runcmd:
+  - [/usr/local/sbin/fray-provision]

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Run on the guest after public DNS and the router's TCP 80 forward are in place.
+set -euo pipefail
+if [[ $# != 2 || ( "$1" != test && "$1" != enable ) ]]; then
+    echo 'Usage: sudo fray-acme {test|enable} YOUR_EMAIL' >&2
+    exit 2
+fi
+[[ $EUID == 0 ]] || { echo 'Run with sudo.' >&2; exit 1; }
+domain=$(cat /etc/fray/acme-domain)
+exec 9>/run/fray-acme.lock
+flock 9
+args=(certonly --non-interactive --agree-tos --email "$2" --webroot -w /var/www/fray-acme --cert-name "$domain" -d "$domain")
+if [[ $1 == test ]]; then
+    exec certbot "${args[@]}" --dry-run
+fi
+certbot "${args[@]}" --keep-until-expiring
+live=/etc/letsencrypt/live/$domain
+config=/etc/fray/web-tls.conf
+tmp=$(mktemp -d /etc/fray/.tls.XXXXXX)
+trap 'rm -rf "$tmp"' EXIT
+cp "$config" "$tmp/previous"
+printf 'ssl_certificate %s/fullchain.pem;\nssl_certificate_key %s/privkey.pem;\n' "$live" "$live" > "$tmp/new"
+mv "$tmp/new" "$config"
+if ! nginx -t || ! systemctl reload nginx; then
+    mv "$tmp/previous" "$config"
+    nginx -t && systemctl reload nginx
+    exit 1
+fi
+systemctl enable --now certbot.timer
+echo "Serving the production certificate for $domain."

@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: Fray
+    folder: Fray
+    type: file
+    options:
+      path: /var/lib/grafana/fray-dashboards

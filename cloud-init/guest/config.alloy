@@ -1,0 +1,17 @@
+loki.source.journal "api" {
+  matches    = "_SYSTEMD_UNIT=fray.service"
+  labels     = { service = "fray" }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.source.journal "nginx" {
+  matches    = "_SYSTEMD_UNIT=nginx.service"
+  labels     = { service = "nginx" }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://127.0.0.1:3100/loki/api/v1/push"
+  }
+}
